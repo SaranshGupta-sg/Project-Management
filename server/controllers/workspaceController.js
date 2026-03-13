@@ -72,6 +72,26 @@ export const addMember = async (req, res) => {
         .status(401)
         .json({ message: "You do not have admin privileges" });
     }
+
+    // Check if user is already a member
+    const existingMember = workspace.members.find(
+      (member) => member.userId === userId,
+    );
+
+    if (existingMember) {
+      return res.status(400).json({ message: "User is already a member" });
+    }
+
+    const member = await prisma.workspaceMember.create({
+      data: {
+        userId: user.id,
+        workspaceId,
+        role,
+        message,
+      },
+    });
+
+    res.json({ member, message: "Member added successfully" });
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: error.code || error.message });
