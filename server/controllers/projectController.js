@@ -99,6 +99,63 @@ export const createProject = async (req, res) => {
 // Update project
 export const updateProject = async (req, res) => {
   try {
+    const { userId } = await req.auth();
+    const {
+      id,
+      workspaceId,
+      name,
+      description,
+      status,
+      priority,
+      progress,
+      start_date,
+      end_date,
+    } = req.body;
+
+    // Check if user has admin role for workspace
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      include: { members: { include: { user: true } } },
+    });
+
+    if (!workspace) {
+      return res.status(404).json({ message: "Workspace not found" });
+    }
+
+    if (
+      !workspace.members.some(
+        (member) => member.userId === userId && member.role === "ADMIN",
+      )
+    ) {
+      const project = await prisma.project.findUnique({
+        where: { id },
+      });
+
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      } else if (project.team_lead !== userId) {
+        return res.status(403).json({
+          message:
+            "You don't have permission to update projects in this workspace",
+        });
+      }
+    }
+
+    const project = await prisma.project.update({
+      where: { id },
+      data: {
+        workspaceId,
+        name,
+        description,
+        status,
+        priority,
+        progress,
+        start_date: start_date ? new Date(start_date) : null,
+        end_date: end_date ? new Date(end_date) : null,
+      },
+    });
+
+    res.json({ project, message: "Project updated successfully" });
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: error.code || error.message });
@@ -108,6 +165,48 @@ export const updateProject = async (req, res) => {
 // Add Member to project
 export const addMember = async (req, res) => {
   try {
+    const { userId } = await req.auth();
+    const { projectid } = req.params;
+    const { email } = req.body;
+
+    // Check if user is project lead
+    const project = await prisma.project.findUnique({
+      where: { id: projectid },
+      include: { members: { include: { user: true } } },
+    });
+
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    if (project.team_lead !== userId) {
+      return res.status(404).json({
+        message: "Only project lead can add members",
+      });
+    }
+
+    // Check if user is already a member
+    const exisitngMember = project.members.find(
+      (member) => member.email === email,
+    );
+
+    if (exisitngMember) {
+      return res.status(400).json({ message: "User is already a member" });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const member = await prisma.projectMember.create({
+      data: {
+        userId: user.id,
+        projectid,
+      },
+    });
+
+    res.json({ member, message: "Member added successfully" });
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: error.code || error.message });
