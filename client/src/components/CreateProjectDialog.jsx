@@ -46,7 +46,7 @@ const CreateProjectDialog = ({ isDialogOpen, setIsDialogOpen }) => {
     } catch (error) {
       toast.error(error?.response?.data?.message || error.message);
     } finally {
-      isSubmitting(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -217,9 +217,12 @@ const CreateProjectDialog = ({ isDialogOpen, setIsDialogOpen }) => {
             >
               <option value="">Add team members</option>
               {currentWorkspace?.members
-                ?.filter((email) => !formData.team_members.includes(email))
+                ?.filter(
+                  (member) =>
+                    !formData.team_members.includes(member.user.email),
+                )
                 .map((member) => (
-                  <option key={member.user.email} value={member.email}>
+                  <option key={member.user.email} value={member.user.email}>
                     {member.user.email}
                   </option>
                 ))}
