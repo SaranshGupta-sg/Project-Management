@@ -39,7 +39,7 @@ const CreateProjectDialog = ({ isDialogOpen, setIsDialogOpen }) => {
           workspaceId: currentWorkspace.id,
           ...formData,
         },
-        { Authorization: `Bearer ${await getToken()}` },
+        { headers: { Authorization: `Bearer ${await getToken()}` } },
       );
       dispatch(addProject(data.project));
       setIsDialogOpen(false);
